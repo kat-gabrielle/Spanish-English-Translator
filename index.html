@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Habla · Speak — Spanish ⇄ English Voice Translator</title>
+<meta name="description" content="Speak Spanish or English and hear the translation. Free, works in the browser on phones, tablets and computers.">
+<meta name="theme-color" content="#1e1b17">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Habla">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f6f2ec; --card:#fffdf9; --ink:#1e1b17; --muted:#6e675d; --line:#e7dfd3;
+    --es:#c2410c; --es-soft:#fbe9df; --en:#1e4fd6; --en-soft:#e3eafc;
+    --err:#b91c1c; --shadow:0 1px 2px rgba(30,27,23,.06),0 8px 24px rgba(30,27,23,.06);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#14120f; --card:#1d1a16; --ink:#f3eee6; --muted:#a39a8d; --line:#332e27;
+      --es:#f2834f; --es-soft:#3a2418; --en:#7aa0ff; --en-soft:#1b2540;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:16px;line-height:1.5}
+  button,input,select,textarea{font:inherit;color:inherit}
+  button{cursor:pointer}
+  .wrap{max-width:900px;margin:0 auto;padding:20px 16px 40px;padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+  header{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  .brand h1{font-family:Fraunces,Georgia,serif;font-weight:700;font-size:30px;margin:0;letter-spacing:-.01em}
+  .brand h1 .es{color:var(--es)} .brand h1 .en{color:var(--en)}
+  .brand p{margin:2px 0 0;color:var(--muted);font-size:14px}
+  .tabs{display:inline-flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;box-shadow:var(--shadow)}
+  .tabs a{padding:8px 16px;border-radius:999px;text-decoration:none;color:var(--muted);font-weight:500;font-size:14px}
+  .tabs a[aria-current="page"]{background:var(--ink);color:var(--bg)}
+  .notice{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--err);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:14px;color:var(--ink)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow)}
+
+  .dirbar{display:flex;align-items:center;justify-content:center;gap:14px;margin:4px 0 16px}
+  .lang{font-family:Fraunces,Georgia,serif;font-size:22px;font-weight:600;min-width:110px;text-align:center}
+  .lang.es{color:var(--es)} .lang.en{color:var(--en)}
+  .swap{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--card);font-size:20px;box-shadow:var(--shadow);transition:transform .25s}
+  .swap:hover{transform:rotate(180deg)}
+  .swap:disabled{opacity:.4;cursor:not-allowed;transform:none}
+  .panels{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:680px){.panels{grid-template-columns:1fr}}
+  .panel{padding:14px 16px 18px;min-height:200px;display:flex;flex-direction:column}
+  .panel-h{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+  .panel-h .tools{display:flex;gap:6px}
+  .ptext{font-size:22px;line-height:1.45;flex:1;white-space:pre-wrap;word-wrap:break-word}
+  .panel.tgt .ptext{font-weight:500}
+  .ptext:empty::before{content:attr(data-placeholder);color:var(--muted);opacity:.7;font-size:18px}
+  .partial,.pending{color:var(--muted)}
+  .err{color:var(--err);font-size:.8em}
+  .iconbtn{border:1px solid var(--line);background:transparent;border-radius:8px;padding:4px 8px;font-size:12px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted);display:inline-flex;align-items:center;gap:4px}
+  .iconbtn:hover{color:var(--ink);border-color:var(--muted)}
+  .iconbtn svg{width:14px;height:14px}
+  .area{border:none;background:transparent;resize:none;outline:none;width:100%;min-height:150px;padding:0;font-size:22px;line-height:1.45}
+  .area::placeholder{color:var(--muted);opacity:.75;font-size:18px}
+  #srcPanel:focus-within{border-color:var(--ink)}
+
+  .controls{display:flex;flex-direction:column;align-items:center;gap:10px;margin:22px 0 12px}
+  .mic{position:relative;width:84px;height:84px;border-radius:50%;border:none;background:var(--ink);color:var(--bg);display:grid;place-items:center;box-shadow:var(--shadow);transition:transform .15s,background .2s}
+  .mic:hover{transform:scale(1.04)}
+  .mic svg{width:34px;height:34px}
+  .mic.on{background:var(--err)}
+  .mic.on::after,.talk.on::after{content:"";position:absolute;inset:-8px;border-radius:inherit;border:3px solid currentColor;opacity:0;animation:pulse 1.4s ease-out infinite}
+  .mic.on::after{border-color:var(--err)}
+  @keyframes pulse{0%{opacity:.6;transform:scale(.92)}100%{opacity:0;transform:scale(1.18)}}
+  .status{font-size:14px;color:var(--muted);text-align:center;min-height:21px}
+
+  .typebar{display:flex;gap:8px;margin-top:6px}
+  .typebar input,.typebar select,.typebar textarea{flex:1;border:1px solid var(--line);background:var(--card);border-radius:12px;padding:11px 14px;min-width:0}
+  .typebar textarea{resize:none;font-size:16px;line-height:1.4}
+  .typebar select{flex:0 0 auto}
+  .typebar button{border:none;background:var(--ink);color:var(--bg);border-radius:12px;padding:11px 18px;font-weight:600}
+
+  .log{padding:16px;min-height:320px;max-height:56vh;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+  .empty{margin:auto;text-align:center;color:var(--muted);max-width:420px;font-size:15px}
+  .empty strong{color:var(--ink)}
+  .bubble{max-width:82%;border-radius:16px;padding:10px 14px 12px;border:1px solid var(--line)}
+  .bubble.es{align-self:flex-start;background:var(--es-soft);border-top-left-radius:4px}
+  .bubble.en{align-self:flex-end;background:var(--en-soft);border-top-right-radius:4px}
+  .bubble .who{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+  .bubble.es .who span{color:var(--es)} .bubble.en .who span{color:var(--en)}
+  .bubble .orig{font-size:15px;color:var(--muted)}
+  .bubble .trans{font-size:20px;font-weight:500;line-height:1.4;margin-top:4px}
+  .bubble .orig:empty::before{content:"Listening…";font-style:italic}
+  .convo-controls{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 8px}
+  .talk{position:relative;border:none;border-radius:18px;padding:16px 12px;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:600;font-size:16px;color:#fff;box-shadow:var(--shadow);transition:transform .15s,filter .2s}
+  .talk:hover{transform:translateY(-1px)}
+  .talk svg{width:24px;height:24px;flex:0 0 auto}
+  .talk.es{background:var(--es)} .talk.en{background:var(--en)}
+  .talk.es::after{color:var(--es)} .talk.en::after{color:var(--en)}
+  .talk.dim{filter:saturate(.3) opacity(.6)}
+  .talk small{display:block;font-weight:500;opacity:.85;font-size:12px}
+  .talk .lbl{text-align:left;line-height:1.25}
+  .logtools{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+  .ghost{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 14px;font-size:14px;font-weight:500}
+
+  .phonehint{background:var(--card);border:1px dashed var(--muted);border-radius:12px;padding:10px 14px;margin:0 0 14px;font-size:14px;color:var(--muted)}
+  .phonehint strong{color:var(--ink)}
+  .phonehint .tip{display:block;margin-top:4px;font-size:13px}
+  body.kb .typebar textarea{min-height:110px;font-size:18px}
+  body.kb .typebar button{align-self:flex-end}
+  body.kb .talk{padding:12px 10px}
+  body.kb .talk.dim{filter:saturate(.15) opacity(.45)}
+
+  .settings{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;justify-content:center;margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+  .settings label{display:inline-flex;align-items:center;gap:8px}
+  .settings select,.settings input[type=email]{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:5px 8px}
+  .settings input[type=email]{width:210px}
+  .settings input[type=checkbox]{width:18px;height:18px;accent-color:var(--ink)}
+  footer{margin-top:14px;text-align:center;font-size:12px;color:var(--muted)}
+  footer a{color:inherit}
+  @media (max-width:680px){
+    .wrap{padding-top:14px}
+    .brand h1{font-size:26px}
+    .lang{font-size:19px;min-width:90px}
+    .ptext{font-size:20px}
+    .panel{min-height:150px}
+    .log{max-height:48vh;min-height:220px}
+    .bubble{max-width:92%}
+    .talk{font-size:15px}
+  }
+  [hidden]{display:none !important}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1><span class="es">Habla</span> · <span class="en">Speak</span></h1>
+      <p>Live voice translation between Spanish and English</p>
+    </div>
+    <nav class="tabs" aria-label="Mode">
+      <a href="#translate" id="tab-translate">Translate</a>
+      <a href="#conversation" id="tab-conversation">Conversation</a>
+    </nav>
+  </header>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <!-- TRANSLATE VIEW -->
+  <section id="view-translate">
+    <div class="dirbar">
+      <span class="lang es" id="srcLabel">Español</span>
+      <button class="swap" id="swap" aria-label="Swap languages" title="Swap languages">⇄</button>
+      <span class="lang en" id="tgtLabel">English</span>
+    </div>
+    <div class="phonehint" id="hintT" hidden></div>
+    <div class="panels">
+      <div class="card panel" id="srcPanel">
+        <div class="panel-h"><span id="srcHead">You said · Spanish</span>
+          <span class="tools"><button class="iconbtn" id="clearT" hidden>Clear</button></span>
+        </div>
+        <div class="ptext" id="srcText" data-placeholder="Tap the microphone and speak…"></div>
+        <label class="sr" for="srcInput">Speak or type here</label>
+        <textarea id="srcInput" class="ptext area" rows="4" hidden autocomplete="off" autocapitalize="sentences"></textarea>
+      </div>
+      <div class="card panel tgt">
+        <div class="panel-h"><span id="tgtHead">Translation · English</span>
+          <span class="tools">
+            <button class="iconbtn" id="replayT" title="Read aloud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M19 5a10 10 0 0 1 0 14"/></svg>Play</button>
+            <button class="iconbtn" id="copyT" title="Copy translation">Copy</button>
+          </span>
+        </div>
+        <div class="ptext" id="tgtText" data-placeholder="The translation will appear here."></div>
+      </div>
+    </div>
+    <div class="controls" id="controlsT">
+      <button class="mic" id="micT" aria-label="Start listening" aria-pressed="false"></button>
+      <div class="status" id="statusT" role="status"></div>
+    </div>
+    <form class="typebar" id="typeT">
+      <label class="sr" for="typeTInput">Type text to translate</label>
+      <input id="typeTInput" autocomplete="off" placeholder="…or type a sentence here">
+      <button type="submit">Translate</button>
+    </form>
+  </section>
+
+  <!-- CONVERSATION VIEW -->
+  <section id="view-conversation" hidden>
+    <div class="card log" id="log" aria-live="polite">
+      <div class="empty" id="logEmpty"><strong>Take turns speaking.</strong><br>The Spanish speaker taps the orange button, the English speaker taps the blue one. Each turn is translated and read aloud for the other person.</div>
+    </div>
+    <div class="convo-controls">
+      <button class="talk es" data-lang="es"><span class="ico"></span><span class="lbl">Hablar en español<small>Spanish → English</small></span></button>
+      <button class="talk en" data-lang="en"><span class="ico"></span><span class="lbl">Speak English<small>English → Spanish</small></span></button>
+    </div>
+    <div class="phonehint" id="hintC" hidden></div>
+    <div class="status" id="statusC" role="status"></div>
+    <form class="typebar" id="typeC">
+      <label class="sr" for="typeCLang">Language</label>
+      <select id="typeCLang"><option value="es">Español</option><option value="en">English</option></select>
+      <label class="sr" for="typeCInput">Type a message</label>
+      <textarea id="typeCInput" rows="1" autocomplete="off" autocapitalize="sentences" placeholder="…or type a message"></textarea>
+      <button type="submit">Send</button>
+    </form>
+    <div class="logtools">
+      <button class="ghost" id="copyLog">Copy transcript</button>
+      <button class="ghost" id="clearLog">Clear</button>
+    </div>
+  </section>
+
+  <div class="settings">
+    <label><input type="checkbox" id="autoSpeak" checked> Read translations aloud</label>
+    <label>Spanish
+      <select id="variety"><option value="latam">Latin American</option><option value="spain">Spain</option></select>
+    </label>
+    <label>Voice speed
+      <select id="rate"><option value="0.85">Slow</option><option value="1" selected>Normal</option><option value="1.15">Fast</option></select>
+    </label>
+    <label title="Optional. Raises the free daily limit from about 5,000 to 50,000 characters. Sent only to MyMemory.">Email (optional, for a higher daily limit)
+      <input type="email" id="email" placeholder="you@example.com" autocomplete="email">
+    </label>
+  </div>
+  <footer>
+    Translations by <a href="https://mymemory.translated.net" target="_blank" rel="noopener">MyMemory</a> (free) ·
+    Used today on this device: <span id="usage">0</span> of <span id="limit">5,000</span> characters
+  </footer>
+</div>
+
+<script>
+(() => {
+  // ---------- icons & constants ----------
+  const MIC = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>';
+  const STOP = '<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>';
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+  const SPK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+  const LANG = {
+    es: { name: 'Español', en: 'Spanish', other: 'en' },
+    en: { name: 'English', en: 'English', other: 'es' }
+  };
+  const $ = id => document.getElementById(id);
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const touch = matchMedia('(pointer:coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // ---------- state ----------
+  let micDenied = false;
+  let kb = false;               // keyboard-microphone mode (no browser speech recognition)
+  let dir = { src: 'es', tgt: 'en' };
+  let active = null;            // the turn currently being listened to / translated
+  let rec = null;               // current SpeechRecognition
+  let lastTranslateTurn = null;
+  const history = [];
+  const settings = { autoSpeak: true, variety: 'latam', rate: 1, email: '' };
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+  };
+  Object.assign(settings, store.get('habla-settings', {}));
+  const saveSettings = () => store.set('habla-settings', settings);
+
+  // ---------- free translation (MyMemory) ----------
+  const cache = new Map();
+  const today = () => new Date().toISOString().slice(0, 10);
+  function usage() { const u = store.get('habla-usage', null); return u && u.day === today() ? u.chars : 0; }
+  function addUsage(n) { store.set('habla-usage', { day: today(), chars: usage() + n }); showUsage(); }
+  function showUsage() {
+    $('usage').textContent = usage().toLocaleString('en');
+    $('limit').textContent = (settings.email ? 50000 : 5000).toLocaleString('en');
+  }
+  const decoder = document.createElement('textarea');
+  const decode = s => { decoder.innerHTML = s; return decoder.value; };
+
+  function chunks(text) {
+    // MyMemory accepts up to ~500 bytes per request: split on sentence ends.
+    const parts = text.match(/[^.!?¡¿]+[.!?]*|[¡¿][^.!?]*[.!?]*/g) || [text];
+    const out = []; let cur = '';
+    for (const p of parts) {
+      if ((cur + p).length > 400 && cur) { out.push(cur.trim()); cur = ''; }
+      cur += p;
+    }
+    if (cur.trim()) out.push(cur.trim());
+    return out.flatMap(c => c.length > 450 ? c.match(/.{1,450}(\s|$)/g) : [c]);
+  }
+
+  async function translateChunk(text, src, tgt) {
+    const key = src + '|' + tgt + '|' + text.toLowerCase();
+    if (cache.has(key)) return cache.get(key);
+    let url = 'https://api.mymemory.translated.net/get?q=' + encodeURIComponent(text) + '&langpair=' + src + '|' + tgt;
+    if (settings.email) url += '&de=' + encodeURIComponent(settings.email);
+    let res;
+    try { res = await fetch(url); } catch (e) { throw { code: 'offline' }; }
+    let data = null;
+    try { data = await res.json(); } catch (e) {}
+    const status = data ? Number(data.responseStatus) : res.status;
+    const out = data && data.responseData && data.responseData.translatedText || '';
+    if (status === 429 || /MYMEMORY WARNING|USED ALL AVAILABLE FREE/i.test(out)) throw { code: 'quota' };
+    if (status !== 200 || !out) throw { code: 'error', message: data && data.responseDetails };
+    addUsage(text.length);
+    let t = decode(out).trim();
+    // MyMemory sometimes returns an all-caps memory match: tone it down.
+    if (t.length > 3 && t === t.toUpperCase() && text !== text.toUpperCase()) t = t.charAt(0) + t.slice(1).toLowerCase();
+    cache.set(key, t);
+    return t;
+  }
+
+  async function translate(text, src, tgt) {
+    const parts = chunks(text);
+    const out = [];
+    for (const p of parts) out.push(await translateChunk(p, src, tgt));
+    return out.join(' ');
+  }
+
+  function errorText(e) {
+    const code = e && e.code;
+    if (code === 'quota') {
+      showNotice("Today's free translation limit has been reached on this network. Add your email in the settings below to raise it to 50,000 characters a day, or try again tomorrow.");
+      return '(daily free limit reached)';
+    }
+    if (code === 'offline') return '(no internet connection)';
+    return "(couldn't translate this)";
+  }
+  function showNotice(msg) { const n = $('notice'); n.textContent = msg; n.hidden = !msg; }
+
+  // ---------- speech output (device voices) ----------
+  const voiceCode = lang => lang === 'es' ? (settings.variety === 'spain' ? 'es-ES' : 'es-MX') : 'en-US';
+  function pickVoice(lang) {
+    const code = voiceCode(lang).toLowerCase();
+    const voices = speechSynthesis.getVoices();
+    const norm = v => v.lang.replace('_', '-').toLowerCase();
+    const prefs = voices.filter(v => norm(v) === code);
+    const any = prefs.length ? prefs : voices.filter(v => norm(v).startsWith(lang));
+    // prefer higher-quality voices when the device offers them
+    return any.find(v => /natural|enhanced|premium|google/i.test(v.name)) || any[0] || null;
+  }
+  function speak(text, lang) {
+    if (!text || !('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = voiceCode(lang); u.rate = settings.rate;
+      const v = pickVoice(lang); if (v) u.voice = v;
+      speechSynthesis.cancel(); speechSynthesis.speak(u);
+    } catch (e) {}
+  }
+  function stopSpeaking() { try { if ('speechSynthesis' in window) speechSynthesis.cancel(); } catch (e) {} }
+  if ('speechSynthesis' in window) { try { speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged = () => {}; } catch (e) {} }
+  // iPhone/iPad only allow speech after a tap: unlock it on the first touch.
+  let speechUnlocked = false;
+  document.addEventListener('touchend', () => {
+    if (speechUnlocked || !('speechSynthesis' in window)) return;
+    speechUnlocked = true;
+    try { const u = new SpeechSynthesisUtterance(' '); u.volume = 0; speechSynthesis.speak(u); } catch (e) {}
+  }, { passive: true });
+
+  // ---------- views ----------
+  function route() {
+    const view = location.hash === '#conversation' ? 'conversation' : 'translate';
+    $('view-translate').hidden = view !== 'translate';
+    $('view-conversation').hidden = view !== 'conversation';
+    $('tab-translate').removeAttribute('aria-current');
+    $('tab-conversation').removeAttribute('aria-current');
+    $('tab-' + view).setAttribute('aria-current', 'page');
+    if (active && !active.finished && active.listening && active.view !== view) stopListening();
+  }
+  window.addEventListener('hashchange', route);
+  function setStatus(view, msg) { $(view === 'translate' ? 'statusT' : 'statusC').textContent = msg; }
+
+  function refresh() {
+    const wasKb = kb;
+    kb = !SR || micDenied;
+    applyKb(wasKb !== kb);
+    const listening = !!active && !active.finished && active.listening;
+
+    const micT = $('micT');
+    const onT = listening && active.view === 'translate';
+    micT.classList.toggle('on', onT);
+    micT.innerHTML = onT ? STOP : MIC;
+    micT.setAttribute('aria-pressed', onT ? 'true' : 'false');
+    micT.setAttribute('aria-label', onT ? 'Stop listening' : 'Start listening');
+    $('swap').disabled = listening;
+
+    document.querySelectorAll('.talk').forEach(b => {
+      const small = b.querySelector('small');
+      if (kb) {
+        const sel = b.dataset.lang === $('typeCLang').value;
+        b.classList.remove('on');
+        b.classList.toggle('dim', !sel);
+        b.setAttribute('aria-pressed', sel ? 'true' : 'false');
+        b.querySelector('.ico').innerHTML = sel ? CHECK : '';
+        small.textContent = sel ? (b.dataset.lang === 'es' ? 'Hablando ahora' : 'Speaking now') : (b.dataset.lang === 'es' ? 'Toque para hablar' : 'Tap to speak');
+        return;
+      }
+      const on = listening && active.view === 'conversation' && active.src === b.dataset.lang;
+      small.textContent = b.dataset.lang === 'es' ? 'Spanish → English' : 'English → Spanish';
+      b.removeAttribute('aria-pressed');
+      b.classList.toggle('on', on);
+      b.classList.toggle('dim', listening && active.view === 'conversation' && !on);
+      b.querySelector('.ico').innerHTML = on ? STOP : MIC;
+    });
+
+    if (!kb && (!active || active.finished)) {
+      if (!$('statusT').dataset.keep) setStatus('translate', 'Tap the microphone and start talking');
+      if (!$('statusC').dataset.keep) setStatus('conversation', 'Tap your language to speak');
+    }
+  }
+
+  function updateDirLabels() {
+    $('srcLabel').textContent = LANG[dir.src].name; $('srcLabel').className = 'lang ' + dir.src;
+    $('tgtLabel').textContent = LANG[dir.tgt].name; $('tgtLabel').className = 'lang ' + dir.tgt;
+    $('srcHead').textContent = (dir.src === 'es' ? 'Usted dijo · ' : 'You said · ') + LANG[dir.src].en;
+    $('tgtHead').textContent = 'Translation · ' + LANG[dir.tgt].en;
+    $('srcText').dataset.placeholder = dir.src === 'es' ? 'Toque el micrófono y hable…' : 'Tap the microphone and speak…';
+    $('srcInput').placeholder = dir.src === 'es' ? 'Toque aquí y luego el 🎤 del teclado' : 'Tap here, then tap 🎤 on your keyboard';
+    updateHints();
+  }
+
+  // ---------- keyboard-microphone mode ----------
+  function updateHints() {
+    const l = LANG[dir.src].en;
+    $('hintT').innerHTML =
+      `<strong>Tap the box, then tap 🎤 on your keyboard and speak ${l}.</strong> It translates and reads aloud when you pause.` +
+      `<span class="tip">Tip: set your keyboard to ${l} with the 🌐 key so it understands you.</span>`;
+    const who = LANG[$('typeCLang').value].en;
+    $('hintC').innerHTML =
+      `<strong>Choose who is speaking, tap the box, then tap 🎤 on your keyboard.</strong> It sends by itself when you pause, then switches to the other person.` +
+      `<span class="tip">Tip: switch the keyboard to ${who} with the 🌐 key so it understands ${who}.</span>`;
+  }
+  function applyKb(changed) {
+    document.body.classList.toggle('kb', kb);
+    $('srcInput').hidden = !kb;
+    $('srcText').hidden = kb;
+    $('clearT').hidden = !kb;
+    $('typeT').hidden = kb;
+    $('controlsT').hidden = kb;
+    $('hintT').hidden = !kb;
+    $('hintC').hidden = !kb;
+    $('typeCLang').hidden = kb;
+    $('typeCInput').rows = kb ? 3 : 1;
+    $('typeCInput').placeholder = kb ? 'Tap here, then 🎤 on your keyboard' : '…or type a message';
+    if (changed) updateHints();
+  }
+
+  // ---------- turns ----------
+  function newTurn(view, src) {
+    const turn = { view, src, tgt: LANG[src].other, segs: [], partial: '', chain: Promise.resolve(), listening: false, finished: false, stopping: false };
+    if (view === 'translate') {
+      turn.srcEl = $('srcText'); turn.tgtEl = $('tgtText');
+      turn.srcEl.replaceChildren(); turn.tgtEl.replaceChildren();
+      lastTranslateTurn = turn;
+    } else {
+      $('logEmpty').hidden = true;
+      const b = document.createElement('div');
+      b.className = 'bubble ' + src;
+      const who = document.createElement('div'); who.className = 'who';
+      const lbl = document.createElement('span'); lbl.textContent = LANG[src].name + ' → ' + LANG[turn.tgt].name;
+      const rp = document.createElement('button'); rp.className = 'iconbtn'; rp.innerHTML = SPK + 'Play'; rp.title = 'Read aloud';
+      rp.addEventListener('click', () => speak(turnText(turn), turn.tgt));
+      who.append(lbl, rp);
+      const o = document.createElement('div'); o.className = 'orig';
+      const t = document.createElement('div'); t.className = 'trans';
+      b.append(who, o, t);
+      $('log').append(b);
+      turn.el = b; turn.srcEl = o; turn.tgtEl = t;
+      scrollLog();
+    }
+    return turn;
+  }
+  const turnText = turn => turn.segs.filter(s => s.done && !s.err).map(s => s.tgt).join(' ').trim();
+  const scrollLog = () => { const l = $('log'); l.scrollTop = l.scrollHeight; };
+
+  function render(turn) {
+    turn.srcEl.replaceChildren();
+    turn.segs.forEach(s => turn.srcEl.append(document.createTextNode(s.src + ' ')));
+    if (turn.partial) {
+      const p = document.createElement('span'); p.className = 'partial'; p.textContent = turn.partial;
+      turn.srcEl.append(p);
+    }
+    turn.tgtEl.replaceChildren();
+    turn.segs.forEach(s => {
+      const sp = document.createElement('span');
+      sp.className = s.err ? 'err' : (s.done ? '' : 'pending');
+      sp.textContent = (s.tgt || '…') + ' ';
+      turn.tgtEl.append(sp);
+    });
+    if (turn.view === 'conversation') scrollLog();
+  }
+
+  function addSegment(turn, text) {
+    const seg = { src: text, tgt: '', done: false, err: false };
+    turn.segs.push(seg);
+    render(turn);
+    turn.chain = turn.chain.then(async () => {
+      try { seg.tgt = await translate(text, turn.src, turn.tgt); }
+      catch (e) { seg.err = true; seg.tgt = errorText(e); }
+      seg.done = true;
+      render(turn);
+    });
+  }
+
+  // ---------- listening (browser speech recognition) ----------
+  const recLang = lang => lang === 'es' ? (settings.variety === 'spain' ? 'es-ES' : 'es-MX') : 'en-US';
+
+  function startListening(view, src) {
+    if (!SR || micDenied) return;
+    if (active && !active.finished && active.listening) { stopListening(); return; }
+    stopSpeaking();
+    const r = new SR();
+    r.lang = recLang(src);
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+    // On phones one phrase per tap is most reliable; on computers keep listening until stopped.
+    r.continuous = !touch;
+    const turn = newTurn(view, src);
+    turn.listening = true; turn.rec = r;
+    active = turn; rec = r;
+    delete $('statusT').dataset.keep; delete $('statusC').dataset.keep;
+
+    r.onresult = e => {
+      if (active !== turn || turn.finished) return;
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        if (res.isFinal) { const t = res[0].transcript.trim(); if (t) addSegment(turn, t); }
+        else interim += res[0].transcript;
+      }
+      turn.partial = interim.trim();
+      render(turn);
+    };
+    r.onerror = e => { turn.error = e.error; };
+    r.onend = () => {
+      if (turn.error === 'not-allowed' || turn.error === 'service-not-allowed') {
+        micDenied = true;
+        showNotice('Microphone access was blocked, so the page switched to keyboard mode. To use the mic button, allow the microphone for this site in your browser settings and reload.');
+      }
+      finishTurn(turn);
+    };
+    try { r.start(); }
+    catch (e) { turn.error = 'start'; finishTurn(turn); return; }
+    setStatus(view, touch
+      ? (src === 'es' ? 'Escuchando… hable ahora' : 'Listening… speak now')
+      : (src === 'es' ? 'Escuchando… toque de nuevo para terminar' : 'Listening… tap again when you finish'));
+    refresh();
+  }
+
+  function stopListening() {
+    const turn = active;
+    if (!turn || turn.finished || turn.stopping) return;
+    turn.stopping = true;
+    setStatus(turn.view, 'Finishing…');
+    try { turn.rec && turn.rec.stop(); } catch (e) {}
+    setTimeout(() => finishTurn(turn), 2500); // safety net if the browser never reports the end
+  }
+
+  function discardIfEmpty(turn) {
+    if (turn.segs.length) return false;
+    if (turn.el) { turn.el.remove(); if (!$('log').querySelector('.bubble')) $('logEmpty').hidden = false; }
+    else turn.srcEl.replaceChildren();
+    return true;
+  }
+
+  async function finishTurn(turn) {
+    if (turn.finished) return;
+    turn.finished = true; turn.listening = false;
+    if (turn.partial) { const p = turn.partial.trim(); turn.partial = ''; if (p) addSegment(turn, p); }
+    refresh();
+    if (discardIfEmpty(turn)) {
+      const key = turn.view === 'translate' ? 'statusT' : 'statusC';
+      $(key).dataset.keep = '1';
+      let msg = turn.src === 'es' ? 'No se escuchó nada. Inténtelo de nuevo.' : "Didn't catch that. Try again.";
+      if (turn.error === 'network') msg = 'Speech recognition needs an internet connection. Please try again.';
+      if (turn.error === 'audio-capture') msg = 'No microphone was found.';
+      if (micDenied) msg = '';
+      setStatus(turn.view, msg);
+      refresh();
+      return;
+    }
+    setStatus(turn.view, 'Translating…');
+    await turn.chain;
+    const out = turnText(turn);
+    history.push({ view: turn.view, src: turn.src, tgt: turn.tgt, srcText: turn.segs.map(s => s.src).join(' '), tgtText: out });
+    setStatus(turn.view, '');
+    if (!active || active === turn || active.finished) refresh();
+    if (out && settings.autoSpeak) speak(out, turn.tgt);
+  }
+
+  // ---------- typed input ----------
+  function typed(view, src, text) {
+    text = text.trim();
+    if (!text) return;
+    if (active && !active.finished && active.listening) stopListening();
+    stopSpeaking();
+    const turn = newTurn(view, src);
+    active = turn;
+    addSegment(turn, text);
+    finishTurn(turn);
+  }
+
+  // ---------- wiring ----------
+  $('micT').addEventListener('click', () => {
+    if (active && !active.finished && active.listening) stopListening();
+    else startListening('translate', dir.src);
+  });
+  document.querySelectorAll('.talk').forEach(b => b.addEventListener('click', () => {
+    if (kb) {
+      $('typeCLang').value = b.dataset.lang;
+      updateHints(); refresh();
+      $('typeCInput').focus();
+      return;
+    }
+    if (active && !active.finished && active.listening) stopListening();
+    else startListening('conversation', b.dataset.lang);
+  }));
+
+  // Translate tab, keyboard mode: translate automatically when the speaker pauses
+  let tTimer = null, tSeq = 0, lastTranslatedSrc = '';
+  $('srcInput').addEventListener('input', () => {
+    clearTimeout(tTimer);
+    const v = $('srcInput').value.trim();
+    if (!v) { tSeq++; $('tgtText').replaceChildren(); lastTranslateTurn = null; lastTranslatedSrc = ''; setStatus('translate', ''); return; }
+    tTimer = setTimeout(() => liveTranslate(v), 1300);
+  });
+  async function liveTranslate(v) {
+    if (v === lastTranslatedSrc) return;
+    const seq = ++tSeq;
+    stopSpeaking();
+    setStatus('translate', 'Translating…');
+    const src = dir.src, tgt = dir.tgt;
+    const seg = { src: v, tgt: '', done: false, err: false };
+    const turn = { view: 'translate', src, tgt, segs: [seg], partial: '', finished: true, srcEl: document.createElement('div'), tgtEl: $('tgtText') };
+    lastTranslateTurn = turn;
+    render(turn);
+    try { seg.tgt = await translate(v, src, tgt); }
+    catch (e) { seg.err = true; seg.tgt = errorText(e); }
+    seg.done = true;
+    if (seq !== tSeq) return;
+    render(turn);
+    lastTranslatedSrc = v;
+    setStatus('translate', seg.err ? '' : 'Keep talking to add more, or tap Clear to start again.');
+    setTimeout(() => {
+      if (seq === tSeq && !seg.err && settings.autoSpeak && $('srcInput').value.trim() === v) speak(seg.tgt, tgt);
+    }, 500);
+  }
+  $('clearT').addEventListener('click', () => {
+    clearTimeout(tTimer); tSeq++; stopSpeaking();
+    $('srcInput').value = ''; $('tgtText').replaceChildren();
+    lastTranslateTurn = null; lastTranslatedSrc = '';
+    setStatus('translate', '');
+    $('srcInput').focus();
+  });
+
+  $('swap').addEventListener('click', () => {
+    const prev = lastTranslateTurn ? turnText(lastTranslateTurn) : '';
+    dir = { src: dir.tgt, tgt: dir.src };
+    updateDirLabels();
+    if (kb) {
+      clearTimeout(tTimer); tSeq++;
+      $('srcInput').value = prev; lastTranslatedSrc = '';
+      $('tgtText').replaceChildren(); lastTranslateTurn = null;
+      if (prev) liveTranslate(prev);
+      return;
+    }
+    $('srcText').replaceChildren(); $('tgtText').replaceChildren(); lastTranslateTurn = null;
+  });
+  $('typeT').addEventListener('submit', e => {
+    e.preventDefault();
+    const i = $('typeTInput'); const v = i.value; i.value = '';
+    typed('translate', dir.src, v);
+  });
+
+  // Conversation tab: typed or keyboard-dictated messages
+  let cTimer = null;
+  function sendConvo() {
+    clearTimeout(cTimer);
+    const i = $('typeCInput'); const v = i.value;
+    if (!v.trim()) return;
+    i.value = '';
+    const lang = $('typeCLang').value;
+    typed('conversation', lang, v);
+    if (kb) { $('typeCLang').value = LANG[lang].other; updateHints(); refresh(); }
+  }
+  $('typeC').addEventListener('submit', e => { e.preventDefault(); sendConvo(); });
+  $('typeCInput').addEventListener('input', () => {
+    if (!kb) return;
+    clearTimeout(cTimer);
+    if (!$('typeCInput').value.trim()) return;
+    cTimer = setTimeout(sendConvo, 2000);
+  });
+  $('typeCInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); sendConvo(); }
+  });
+
+  $('replayT').addEventListener('click', () => { if (lastTranslateTurn) speak(turnText(lastTranslateTurn), lastTranslateTurn.tgt); });
+  async function copy(text, btn) {
+    if (!text) return;
+    const old = btn.textContent;
+    try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; }
+    catch (e) { btn.textContent = 'Copy failed'; }
+    setTimeout(() => { btn.textContent = old; }, 1400);
+  }
+  $('copyT').addEventListener('click', e => copy(lastTranslateTurn ? turnText(lastTranslateTurn) : '', e.currentTarget));
+  $('copyLog').addEventListener('click', e => {
+    const lines = history.filter(h => h.view === 'conversation')
+      .map(h => `[${LANG[h.src].name}] ${h.srcText}\n[${LANG[h.tgt].name}] ${h.tgtText}`);
+    copy(lines.join('\n\n'), e.currentTarget);
+  });
+  $('clearLog').addEventListener('click', () => {
+    if (active && !active.finished && active.view === 'conversation') return;
+    $('log').querySelectorAll('.bubble').forEach(b => b.remove());
+    $('logEmpty').hidden = false;
+    for (let i = history.length - 1; i >= 0; i--) if (history[i].view === 'conversation') history.splice(i, 1);
+  });
+
+  // settings
+  $('autoSpeak').checked = settings.autoSpeak;
+  $('variety').value = settings.variety;
+  $('rate').value = String(settings.rate);
+  $('email').value = settings.email || '';
+  $('autoSpeak').addEventListener('change', e => { settings.autoSpeak = e.target.checked; if (!e.target.checked) stopSpeaking(); saveSettings(); });
+  $('variety').addEventListener('change', e => { settings.variety = e.target.value; saveSettings(); });
+  $('rate').addEventListener('change', e => { settings.rate = parseFloat(e.target.value) || 1; saveSettings(); });
+  $('email').addEventListener('change', e => {
+    const v = e.target.value.trim();
+    settings.email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? v : '';
+    if (!settings.email) e.target.value = '';
+    saveSettings(); showUsage();
+    if (settings.email) showNotice('');
+  });
+
+  // Space bar toggles the mic in the Translate tab (computers)
+  document.addEventListener('keydown', e => {
+    if (e.code !== 'Space' || e.repeat || kb) return;
+    const tag = (e.target.tagName || '').toLowerCase();
+    if (['input', 'select', 'button', 'textarea'].includes(tag)) return;
+    if ($('view-translate').hidden) return;
+    e.preventDefault();
+    $('micT').click();
+  });
+
+  if (!window.isSecureContext && SR) showNotice('The microphone only works when the page is opened over https:// (GitHub Pages does this automatically).');
+  updateDirLabels();
+  route();
+  refresh();
+  showUsage();
+})();
+</script>
+</body>
+</html>
